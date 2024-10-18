@@ -9,7 +9,6 @@ import threading
 import argparse
 from os import mkdir
 
-
 targets = []
 proxies = None
 failed_req = []
@@ -27,7 +26,7 @@ def openTargets(filename):
     return l
 
 
-print('''
+print(r'''
   _____                  __    _             __           
  / ___/____ ___ _ ___   / /   (_)____ ___ _ / /_ ___   ____
 / (_ // __// _ `// _ \ / _ \ / // __// _ `// __// _ \ / __/
@@ -35,13 +34,14 @@ print('''
                /_/                                         
 
 By @fand0mas
+Extra note: Make sure the header has no spaces surrounding the ":" !
+Hint: in Linux run header=<..> and then specify like --header "Authorization:Bearer $header"
 ''')
 
 parser = argparse.ArgumentParser(description='Graphicator - GraphQL Extractor')
 parser.add_argument('--use-tor', dest='tor', action='store_true', help='Configure to use tor @ 9150')
 parser.add_argument('--insecure', dest='k', action='store_true', help='Disable certificate warnings', default=False)
-parser.add_argument('--use-proxy', dest='proxyurl', action='store_true', help='Configure proxy url')
-parser.add_argument('--default-burp-proxy', dest='proxyburp', action='store_true', help='Configure to default burp proxy settings')
+parser.add_argument('--use-proxy', dest='proxyurl', action='store_true', help='Configure proxy url to 127.0.0.1:8080')
 parser.add_argument('--target', dest='url', action='append')
 parser.add_argument('--header', dest='header', action='append', help="HEADER_KEY:HEADER_VALUE")
 parser.add_argument('--file', dest='file', help='Read targets from the designated file [content format: http://.../graphql]')
@@ -57,8 +57,6 @@ if args.url is None and args.file is None:
 if args.tor:
 	proxies = {'http':  'socks5://127.0.0.1:9150', 'https': 'socks5://127.0.0.1:9150'}
 elif args.proxyurl is not None:
-	proxies = {'http':  args.proxyurl, 'https': args.proxyurl}
-elif args.proxyburp is not None:
 	proxies = {'http':  '127.0.0.1:8080', 'https': '127.0.0.1:8080'}
 
 if args.url is None and args.file is not None:
@@ -89,7 +87,7 @@ if verbose:
 	print("[-] Verbose")
 if args.tor:
 	print("[-] Using Tor as proxy")
-if args.proxyurl or args.proxyburp:
+if args.proxyurl:
 	print("[-] Proxy is configured")
 if not multi_t:
 	print("[-] Multi-threaded: Disabled")
@@ -113,13 +111,14 @@ def saveFailedRequests():
     f.close()
 
 
-def graphql_query(url, gquery, introsp=False):
+def graphql_query(url, gquery, introsp=False, field=None):
     dirname = "reqcache"
     dirintro = "reqcache-intro"
     querydir = "reqcache-queries"
     sha_1 = hashlib.sha1()
     sha_1.update(url.encode() + gquery.encode() + "Q".encode())
     cached_fname = sha_1.hexdigest()
+    if field: cached_fname = cached_fname + '_' + field
     cache_dir = ""
     
     if not introsp:
@@ -257,11 +256,11 @@ def enumerate_queries(url):
                         if field_kind == "OBJECT":
                                 res = generate_query_of_type(type_name, full_types_map, list())
                                 if res is not None:
-                                    thread_list.append(threading.Thread(target=graphql_query, args=(url, "query {" + query_name + " " + res + " }")))
+                                    thread_list.append(threading.Thread(target=graphql_query, args=(url, "query {" + query_name + " " + res + " }", False, query_name)))
                         elif field_kind == "SCALAR" or field_kind == "ENUM":
                                 res = type_name
                                 if res == None: res = ""
-                                thread_list.append(threading.Thread(target=graphql_query, args=(url, "query {" + query_name + " " + res + " }")))
+                                thread_list.append(threading.Thread(target=graphql_query, args=(url, "query {" + query_name + " " + res + " }", False, query_name)))
                         
                             
 								
